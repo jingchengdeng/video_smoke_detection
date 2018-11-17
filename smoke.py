@@ -10,6 +10,7 @@ import numpy as np
 import math
 import os
 import sys
+from guidedfilter import *
 
 imgf = "data/smk3.jpg"
 imgsize = 700
@@ -90,6 +91,19 @@ def getAtomsLight(img, darkChannel):
                 A = img[list[i].x, list[i].y, j]
     return A
 
+##########################################
+# Transmission helper function
+# input: image, dark channel
+# return: A
+##########################################
+
+def transmission(img, A, blocksize):
+    omega = 0.95
+    imageGray = np.empty(img.shape, img.dtype)
+    for i in range(3):
+        imageGray[:, :, i] = img[:, :, i]/A[0, i]
+    t = 1 - omega * getDarkChannel(imageGray, blocksize)
+    return t
 
 def main():
     print("main")
