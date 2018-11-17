@@ -14,6 +14,13 @@ import sys
 imgf = "data/smk3.jpg"
 imgsize = 700
 
+class Node(object):
+    def __init__(self, x, y, key):
+        self.x = x
+        self.y = y
+        self.key = key
+
+
 def resizeimge(img, max):
     h = img.shape[0]
     w = img.shape[1]
@@ -32,12 +39,56 @@ def colorAnalysis(img, alpha):
     blue = img[:, :, 2]
     for i in range(h):
         for j in range(w):
-            if abs(int(red[i][j])-int(green[i][j])) < alpha and abs(int(red[i][j])-int(blue[i][j])) < alpha and abs(int(green[i][j])-int(blue[i][j])) < alpha and red[i][j] > 100:
+            if abs(int(red[i][j])-int(green[i][j])) < alpha \
+                    and abs(int(red[i][j])-int(blue[i][j])) < alpha \
+                    and abs(int(green[i][j])-int(blue[i][j])) < alpha \
+                    and red[i][j] > 100:
                 img[i][j] = 255
             else:
                 img[i][j] = 0
     cv2.imshow('image', img)
     cv2.waitKey(0) & 0xFF
+
+
+##########################################
+# Darken channel helper function
+# input: image, blocksize
+# return: dark Channel
+##########################################
+
+def getDarkChannel(img, blocksize):
+    b, g, r = cv2.split(img)
+    minRBG = cv2.min(cv2.min(r, g), b)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (blocksize, blocksize))
+    darkChannel = cv2.erode(minRBG, kernel)
+    return darkChannel
+
+##########################################
+# Atmospheric Light helper function
+# input: image, dark channel
+# return: A
+##########################################
+
+def getAtomsLight(img, darkChannel):
+    [h, w] = darkChannel.shape[:2]
+    imgSize = h * w
+    list = []
+    A = 0
+    for i in range(0, h):
+        for j in range (0, w):
+            item = Node(i, j, darkChannel[i, j])
+            list.append(item)
+    list.sort(key=lambda node: node.key, reverse=True)
+
+    for i in range(0, int(imgSize * 0.1)):
+        for j in range(0, 3):
+            if img[list[i].x, list[i].y, j] < A:
+                continue
+            elif img[list[i].x, list[i].y, j] == A:
+                continue
+            elif img[list[i].x, list[i].y, j] > A:
+                A = img[list[i].x, list[i].y, j]
+    return A
 
 
 def main():
