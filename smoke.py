@@ -10,8 +10,10 @@ import numpy as np
 import math
 import os
 import sys
+import skvideo
 from guidedfilter import guided_filter
 import time
+
 
 imgf = "data/smk3.jpg"
 m1 = "test/frame10.jpg"
@@ -183,8 +185,8 @@ def transmission(img, A, blocksize, ori):
     t = 1 - omega * getDarkChannel(imageGray, blocksize)
     # print(t)
     t[t<0.1]= 0.1
-    normI = (img - img.min()) / (img.max() - img.min())
-    t = guided_filter(normI, t, 40, 0.0001)
+    # normI = (img - img.min()) / (img.max() - img.min())
+    # t = guided_filter(normI, t, 40, 0.0001)
     # print(t)
     return t
 
@@ -231,10 +233,42 @@ def drawmask(img, mask, n=3):
                 cv2.rectangle(overlay, (j-n, i-n), (j+n, i+n),(0, 0, 255), -1)
     cv2.addWeighted(overlay, 0.5, out, 0.5,0, out)
     return out
+def productVideo(h,w):
+    try:
+         video_src = sys.argv[1]
+    except IndexError:
+         print('Video Pass Error')
+    cap = cv2.VideoCapture(video_src)
+    fps = 15
+    capSize = (281, 500)
+    frame_count = 1
+    fourcc = cv2.VideoWriter_fourcc(*'avc1')
+    out = cv2.VideoWriter('output.mp4', fourcc, 15.0, (1280, 720), True)
+    while True:
+        print(frame_count)
+        ret, frame = cap.read()
+        if frame is None:
+            print("Video reach end.")
+            break
+
+        # frame = getDP(frame)
+        # frame_width = int(frame.get(3))
+        # frame_height = int(frame.get(4))
+        frame = cv2.resize(frame, (1280,720))
+        print(frame.shape)
+        h,w,d = frame.shape
+        print(h)
+        print(w)
+        out.write(frame)
+        frame_count += 1
+        if frame_count == 91:
+            out.release()
+            break
+
 def main():
     print("main")
     # motionloop()
-    
+
     img = cv2.imread("test/frame175.jpg")
     img = resizeimge(img, imgsize)
     h,w,d = img.shape
@@ -248,6 +282,7 @@ def main():
     cv2.imshow('final', final)
     ovl = drawmask(img, final)
     cv2.imshow('overlay', ovl)
+
     cv2.waitKey(0)
 
 
