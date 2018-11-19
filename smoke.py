@@ -20,7 +20,7 @@ m1 = "test/frame10.jpg"
 m2 = "test/frame15.jpg"
 imgsize = 500
 MHI_DURATION = 5
-DEFAULT_THRESHOLD = 30
+DEFAULT_THRESHOLD = 150
 MAX_TIME_DELTA = 3
 MIN_TIME_DELTA = 2
 colorth = 85
@@ -30,6 +30,9 @@ class Node(object):
         self.x = x
         self.y = y
         self.key = key
+
+def svimg(img):
+    cv2.imwrite('out.jpg',img)
 
 def resizeimge(img, max):
     h = img.shape[0]
@@ -95,15 +98,15 @@ def colorAnalysis(img, alpha):
 #            cv2.destroyAllWindows()
 #            exit()
 
-def mhi(st, n, intv):
-    im1 = cv2.imread("test/frame175.jpg")
+def mhi(fn, st, n, intv):
+    im1 = cv2.imread(fn + "/frame" +str(st)+ ".jpg")
     im1 = grey(im1)
     h, w = im1.shape
     timestamp = 0
     motion_history = np.zeros((h, w), np.float32)
     for i in range(st, st+n*intv+1, intv):
-        im1 = cv2.imread("test/frame"+str(st)+".jpg")
-        im2 = cv2.imread("test/frame"+str(i+intv)+".jpg")
+        im1 = cv2.imread(fn + "/frame"+str(st)+".jpg")
+        im2 = cv2.imread(fn + "/frame"+str(i+intv)+".jpg")
         gry = motion(im1, im2)
         et, motion_mask = cv2.threshold(gry, DEFAULT_THRESHOLD, 1, cv2.THRESH_BINARY)
         timestamp += 1
@@ -206,7 +209,7 @@ def getDP(image):
                 gimg[i][j] = 255
             else:
                 gimg[i][j] = 0
-    return gimg
+    return gimg, t
 #print(t.shape)
 #print(image.shape)
 #cv2.imshow('DP', gimg)
@@ -233,6 +236,7 @@ def drawmask(img, mask, n=3):
                 cv2.rectangle(overlay, (j-n, i-n), (j+n, i+n),(0, 0, 255), -1)
     cv2.addWeighted(overlay, 0.5, out, 0.5,0, out)
     return out
+
 def productVideo(h,w):
     try:
          video_src = sys.argv[1]
@@ -265,48 +269,51 @@ def productVideo(h,w):
             out.release()
             break
 
+def extract_frames(fn):
+    try:
+        video_src = fn
+    except IndexError:
+        print('Video Pass Error')
+    cap = cv2.VideoCapture(video_src)
+    frame_count = 1
+    while True:
+        ret, frame = cap.read()
+        if frame is None:
+            print("Video reach end.")
+            break
+        # extract frames for every X frame
+        
+        if frame_count % 5 == 0:
+            cv2.imwrite("test2/frame%d.jpg" % frame_count, frame)
+            cv2.imshow('ext', frame)
+        
+        # Press Key Q to exit
+        if (cv2.waitKey(10) & 0xFF) == 'Q':
+            break
+        frame_count += 1
+
 def main():
     print("main")
     # motionloop()
 
-    img = cv2.imread("test/frame175.jpg")
-    img = resizeimge(img, imgsize)
-    h,w,d = img.shape
-    img1 = colorAnalysis(img,colorth)
-    #cv2.imshow('grey', img1)
-    img2 = getDP(img)
-    #cv2.imshow('dp', img2)
-    img3 = mhi(175, 7, 5)
-    #cv2.imshow('mhi', img3)
-    final = stack(img1,img2,img3)
-    cv2.imshow('final', final)
-    ovl = drawmask(img, final)
-    cv2.imshow('overlay', ovl)
+    img = cv2.imread("test2/frame255.jpg")
+#    img = resizeimge(img, imgsize)
+#    h,w,d = img.shape
+#    img1 = colorAnalysis(img,colorth)
+#    #cv2.imshow('grey', img1)
+    img2, t = getDP(img)
+#img3 = mhi("test2", 255, 5, 5)
+#cv2.imshow('mhi', img3)
+#    final = stack(img1,img2,img3)
+#    cv2.imshow('final', final)
+#    ovl = drawmask(img, final)
+#    cv2.imshow('overlay', ovl)
 
+
+#extract_frames("videos/simple_smoke.mp4")
     cv2.waitKey(0)
 
 
-#     try:
-#         video_src = sys.argv[1]
-#     except IndexError:
-#         print('Video Pass Error')
-#     cap = cv2.VideoCapture(video_src)
-#     frame_count = 1
-#     while True:
-#         ret, frame = cap.read()
-#         if frame is None:
-#             print("Video reach end.")
-#             break
-#         # extract frames for every X frame
-#
-#         if frame_count % 5 == 0:
-#             cv2.imwrite("test/frame%d.jpg" % frame_count, frame)
-#
-#         # Press Key Q to exit
-#         if (cv2.waitKey(10) & 0xFF) == 'Q':
-#             break
-#
-#         frame_count += 1
 #
 #
 
