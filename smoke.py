@@ -39,19 +39,20 @@ def resizeimge(img, max):
     return img
 
 def grey(img):
+    global imgsize
+    img = resizeimge(img, imgsize)
     if(len(img.shape)) > 2:
         return cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     return img
 
 def motion(img1, img2):
-    img1 = colorAnalysis(img1, colorth)
-    img2 = colorAnalysis(img2, colorth)
+    img1 = grey(img1)
+    img2 = grey(img2)
     frameDelta = cv2.absdiff(img1, img2)
     return frameDelta
 
-def motiondp(img1, img2,i):
+def motiondp(img1, img2):
     img1 = getDP(img1)
-    #cv2.imshow('dc'+str(i),img1)
     img2 = getDP(img2)
     frameDelta = cv2.absdiff(img1, img2)
     return frameDelta
@@ -72,26 +73,26 @@ def colorAnalysis(img, alpha):
                 gimg[i][j] = 0
     return gimg
 
-def motionloop():
-    im1 = cv2.imread("test/frame180.jpg")
-    im1 = colorAnalysis(im1, colorth)
-    h, w = im1.shape
-    timestamp = 0
-    motion_history = np.zeros((h, w), np.float32)
-    for i in range(180, 660, 10):
-        im1 = cv2.imread("test/frame"+str(i)+".jpg")
-        im2 = cv2.imread("test/frame"+str(i+10)+".jpg")
-        grey = motion(im1, im2,i)
-        et, motion_mask = cv2.threshold(grey, DEFAULT_THRESHOLD, 1, cv2.THRESH_BINARY)
-        timestamp += 1
-        cv2.motempl.updateMotionHistory(motion_mask, motion_history, timestamp, MHI_DURATION)
-        mg_mask, mg_orient = cv2.motempl.calcMotionGradient( motion_history, MAX_TIME_DELTA, MIN_TIME_DELTA, apertureSize=5)
-        seg_mask, seg_bounds = cv2.motempl.segmentMotion(motion_history, timestamp, MAX_TIME_DELTA)
-        vis = np.uint8(np.clip((motion_history-(timestamp-MHI_DURATION)) / MHI_DURATION, 0, 1)*255)
-        cv2.imshow('motempl', vis)
-        if k == 27:
-            cv2.destroyAllWindows()
-            exit()
+#def motionloop():
+#    im1 = cv2.imread("test/frame180.jpg")
+#    im1 = colorAnalysis(im1, colorth)
+#    h, w = im1.shape
+#    timestamp = 0
+#    motion_history = np.zeros((h, w), np.float32)
+#    for i in range(180, 660, 10):
+#        im1 = cv2.imread("test/frame"+str(i)+".jpg")
+#        im2 = cv2.imread("test/frame"+str(i+10)+".jpg")
+#        grey = motion(im1, im2,i)
+#        et, motion_mask = cv2.threshold(grey, DEFAULT_THRESHOLD, 1, cv2.THRESH_BINARY)
+#        timestamp += 1
+#        cv2.motempl.updateMotionHistory(motion_mask, motion_history, timestamp, MHI_DURATION)
+#        mg_mask, mg_orient = cv2.motempl.calcMotionGradient( motion_history, MAX_TIME_DELTA, MIN_TIME_DELTA, apertureSize=5)
+#        seg_mask, seg_bounds = cv2.motempl.segmentMotion(motion_history, timestamp, MAX_TIME_DELTA)
+#        vis = np.uint8(np.clip((motion_history-(timestamp-MHI_DURATION)) / MHI_DURATION, 0, 1)*255)
+#        cv2.imshow('motempl', vis)
+#        if k == 27:
+#            cv2.destroyAllWindows()
+#            exit()
 
 def mhi(st, end, intv):
     im1 = cv2.imread("test/frame175.jpg")
@@ -102,7 +103,7 @@ def mhi(st, end, intv):
     for i in range(st, end, intv):
         im1 = cv2.imread("test/frame"+str(st)+".jpg")
         im2 = cv2.imread("test/frame"+str(i+intv)+".jpg")
-        grey = motiondp(im1, im2,i)
+        grey = motion(im1, im2)
         et, motion_mask = cv2.threshold(grey, DEFAULT_THRESHOLD, 1, cv2.THRESH_BINARY)
         timestamp += 1
         cv2.motempl.updateMotionHistory(motion_mask, motion_history, timestamp, MHI_DURATION)
