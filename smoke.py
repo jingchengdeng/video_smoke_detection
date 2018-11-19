@@ -18,7 +18,7 @@ m1 = "test/frame10.jpg"
 m2 = "test/frame15.jpg"
 imgsize = 500
 MHI_DURATION = 5
-DEFAULT_THRESHOLD = 100
+DEFAULT_THRESHOLD = 30
 MAX_TIME_DELTA = 3
 MIN_TIME_DELTA = 2
 colorth = 85
@@ -28,7 +28,6 @@ class Node(object):
         self.x = x
         self.y = y
         self.key = key
-
 
 def resizeimge(img, max):
     h = img.shape[0]
@@ -94,17 +93,17 @@ def colorAnalysis(img, alpha):
 #            cv2.destroyAllWindows()
 #            exit()
 
-def mhi(st, end, intv):
+def mhi(st, n, intv):
     im1 = cv2.imread("test/frame175.jpg")
-    im1 = getDP(im1)
+    im1 = grey(im1)
     h, w = im1.shape
     timestamp = 0
     motion_history = np.zeros((h, w), np.float32)
-    for i in range(st, end, intv):
+    for i in range(st, st+n*intv+1, intv):
         im1 = cv2.imread("test/frame"+str(st)+".jpg")
         im2 = cv2.imread("test/frame"+str(i+intv)+".jpg")
-        grey = motion(im1, im2)
-        et, motion_mask = cv2.threshold(grey, DEFAULT_THRESHOLD, 1, cv2.THRESH_BINARY)
+        gry = motion(im1, im2)
+        et, motion_mask = cv2.threshold(gry, DEFAULT_THRESHOLD, 1, cv2.THRESH_BINARY)
         timestamp += 1
         cv2.motempl.updateMotionHistory(motion_mask, motion_history, timestamp, MHI_DURATION)
         mg_mask, mg_orient = cv2.motempl.calcMotionGradient( motion_history, MAX_TIME_DELTA, MIN_TIME_DELTA, apertureSize=5)
@@ -210,20 +209,46 @@ def getDP(image):
 #print(image.shape)
 #cv2.imshow('DP', gimg)
 
+def stack(img, img2, img3):
+    out = img.copy()
+    h,w = img.shape
+    for i in range(h):
+        for j in range(w):
+            if img[i][j] > 75 and img2[i][j] > 75 and img3[i][j] > 75:
+                out[i][j] = 255
+            else:
+                out[i][j] = 0
+    return out
+
+# input: original image,
+def drawmask(img, mask, n=3):
+    out = img.copy()
+    overlay = img.copy()
+    h,w = mask.shape
+    for i in range(2,h-2,2*n):
+        for j in range(2,w-2,2*n):
+            if mask[i][j] == 255:
+                cv2.rectangle(overlay, (j-n, i-n), (j+n, i+n),(0, 0, 255), -1)
+    cv2.addWeighted(overlay, 0.5, out, 0.5,0, out)
+    return out
 def main():
     print("main")
     # motionloop()
     
-    im1 = cv2.imread("test/frame175.jpg")
-    im1 = resizeimge(im1, imgsize)
-    cv2.imshow('O', im1)
-    imGrey = colorAnalysis(im1,colorth)
-    cv2.imshow('c', imGrey)
-    mhimage = mhi(175, 195, 5)
-    h,w = mhimage.shape
-    cv2.imshow('res', mhimage)
+    img = cv2.imread("test/frame175.jpg")
+    img = resizeimge(img, imgsize)
+    h,w,d = img.shape
+    img1 = colorAnalysis(img,colorth)
+    #cv2.imshow('grey', img1)
+    img2 = getDP(img)
+    #cv2.imshow('dp', img2)
+    img3 = mhi(175, 7, 5)
+    #cv2.imshow('mhi', img3)
+    final = stack(img1,img2,img3)
+    cv2.imshow('final', final)
+    ovl = drawmask(img, final)
+    cv2.imshow('overlay', ovl)
     cv2.waitKey(0)
-    # print(t)
 
 
 #     try:
