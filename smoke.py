@@ -10,7 +10,7 @@ import numpy as np
 import math
 import os
 import sys
-from guidedfilter import *
+from guidedfilter import guided_filter
 import time
 
 imgf = "data/smk3.jpg"
@@ -124,6 +124,17 @@ def getAtomsLight(img, darkChannel):
                 continue
             elif img[list[i].x, list[i].y, j] > A:
                 A = img[list[i].x, list[i].y, j]
+
+    pixl = int(max(math.floor(imgSize/1000),1))
+    darkReshape = darkChannel.reshape(imgSize, 1)
+    imageReshape = img.reshape(imgSize, 3)
+    I = darkReshape.argsort()
+    I = I[imgSize-pixl::]
+
+    at = np.zeros([1, 3])
+    for i in range(1, pixl):
+        at = at +imageReshape[I[i]]
+    A = at/pixl
     return A
 
 ##########################################
@@ -132,17 +143,49 @@ def getAtomsLight(img, darkChannel):
 # return: A
 ##########################################
 
-def transmission(img, A, blocksize):
+def transmission(img, A, blocksize, ori):
     omega = 0.95
     imageGray = np.empty(img.shape, img.dtype)
+    # imageGray = np.min(img, axis=2)
+    # print(A)
     for i in range(3):
         imageGray[:, :, i] = img[:, :, i]/A[0, i]
+    print(imageGray)
+    print(A)
+    # print(getDarkChannel(imageGray, blocksize))
     t = 1 - omega * getDarkChannel(imageGray, blocksize)
+    # print(t)
+    t[t<0.1]= 0.1
+    normI = (img - img.min()) / (img.max() - img.min())
+    t = guided_filter(normI, t, 40, 0.0001)
+    # print(t)
     return t
 
 def main():
     print("main")
-    motionloop()
+    # motionloop()
+    image = cv2.imread("data/smk1.jpg")
+    image = resizeimge(image, 500)
+    I = image.astype('float64') / 255
+    darkChannel = getDarkChannel(I, 15)
+    A = getAtomsLight(I, darkChannel)
+    t = transmission(I, A, 15, image)
+    print('Done!')
+
+    h, w, d = image.shape
+    gimg = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    for i in range(h):
+        for j in range(w):
+            if t[i][j] < 0.4:
+                gimg[i][j] = 255
+            else:
+                gimg[i][j] = 0
+    print(t.shape)
+    print(image.shape)
+    cv2.imshow('DP', gimg)
+    cv2.waitKey(0)
+
+    # print(t)
 
 '''
     try:
