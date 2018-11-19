@@ -14,13 +14,14 @@ from guidedfilter import guided_filter
 import time
 
 imgf = "data/smk3.jpg"
-m1 = "test/frame180.jpg"
-m2 = "test/frame190.jpg"
-imgsize = 700
+m1 = "test/frame10.jpg"
+m2 = "test/frame15.jpg"
+imgsize = 500
 MHI_DURATION = 5
-DEFAULT_THRESHOLD = 68
+DEFAULT_THRESHOLD = 100
 MAX_TIME_DELTA = 3
 MIN_TIME_DELTA = 2
+colorth = 85
 
 class Node(object):
     def __init__(self, x, y, key):
@@ -43,14 +44,21 @@ def grey(img):
     return img
 
 def motion(img1, img2):
-    img1 = colorAnalysis(img1, imgsize)
-    img2 = colorAnalysis(img2, imgsize)
+    img1 = colorAnalysis(img1, colorth)
+    img2 = colorAnalysis(img2, colorth)
+    frameDelta = cv2.absdiff(img1, img2)
+    return frameDelta
+
+def motiondp(img1, img2,i):
+    img1 = getDP(img1)
+    #cv2.imshow('dc'+str(i),img1)
+    img2 = getDP(img2)
     frameDelta = cv2.absdiff(img1, img2)
     return frameDelta
 
 def colorAnalysis(img, alpha):
     img = resizeimge(img, imgsize)
-    img = cv2.GaussianBlur(img, (9, 9), 5)
+    img = cv2.GaussianBlur(img, (5, 5), 5)
     h, w, d = img.shape
     red = img[:, :, 0]
     green = img[:, :, 1]
@@ -58,7 +66,7 @@ def colorAnalysis(img, alpha):
     gimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     for i in range(h):
         for j in range(w):
-            if abs(int(red[i][j])-int(green[i][j])) < alpha and abs(int(red[i][j])-int(blue[i][j])) < alpha and abs(int(green[i][j])-int(blue[i][j])) < alpha and red[i][j] > 100:
+            if abs(int(red[i][j])-int(green[i][j])) < alpha and abs(int(red[i][j])-int(blue[i][j])) < alpha and abs(int(green[i][j])-int(blue[i][j])) < alpha and (int(red[i][j])+int(green[i][j])+int(blue[i][j]))/3 > 100:
                 gimg[i][j] = 255
             else:
                 gimg[i][j] = 0
@@ -66,14 +74,14 @@ def colorAnalysis(img, alpha):
 
 def motionloop():
     im1 = cv2.imread("test/frame180.jpg")
-    im1 = colorAnalysis(im1, 15)
+    im1 = colorAnalysis(im1, colorth)
     h, w = im1.shape
     timestamp = 0
     motion_history = np.zeros((h, w), np.float32)
     for i in range(180, 660, 10):
         im1 = cv2.imread("test/frame"+str(i)+".jpg")
         im2 = cv2.imread("test/frame"+str(i+10)+".jpg")
-        grey = motion(im1, im2)
+        grey = motion(im1, im2,i)
         et, motion_mask = cv2.threshold(grey, DEFAULT_THRESHOLD, 1, cv2.THRESH_BINARY)
         timestamp += 1
         cv2.motempl.updateMotionHistory(motion_mask, motion_history, timestamp, MHI_DURATION)
@@ -81,10 +89,29 @@ def motionloop():
         seg_mask, seg_bounds = cv2.motempl.segmentMotion(motion_history, timestamp, MAX_TIME_DELTA)
         vis = np.uint8(np.clip((motion_history-(timestamp-MHI_DURATION)) / MHI_DURATION, 0, 1)*255)
         cv2.imshow('motempl', vis)
-        k = cv2.waitKey(0) & 0xFF
         if k == 27:
             cv2.destroyAllWindows()
             exit()
+
+def mhi(st, end, intv):
+    im1 = cv2.imread("test/frame175.jpg")
+    im1 = getDP(im1)
+    h, w = im1.shape
+    timestamp = 0
+    motion_history = np.zeros((h, w), np.float32)
+    for i in range(st, end, intv):
+        im1 = cv2.imread("test/frame"+str(st)+".jpg")
+        im2 = cv2.imread("test/frame"+str(i+intv)+".jpg")
+        grey = motiondp(im1, im2,i)
+        et, motion_mask = cv2.threshold(grey, DEFAULT_THRESHOLD, 1, cv2.THRESH_BINARY)
+        timestamp += 1
+        cv2.motempl.updateMotionHistory(motion_mask, motion_history, timestamp, MHI_DURATION)
+        mg_mask, mg_orient = cv2.motempl.calcMotionGradient( motion_history, MAX_TIME_DELTA, MIN_TIME_DELTA, apertureSize=5)
+        seg_mask, seg_bounds = cv2.motempl.segmentMotion(motion_history, timestamp, MAX_TIME_DELTA)
+        vis = np.uint8(np.clip((motion_history-(timestamp-MHI_DURATION)) / MHI_DURATION, 0, 1)*255)
+    return vis
+
+
 
 ##########################################
 # Darken channel helper function
@@ -150,8 +177,8 @@ def transmission(img, A, blocksize, ori):
     # print(A)
     for i in range(3):
         imageGray[:, :, i] = img[:, :, i]/A[0, i]
-    print(imageGray)
-    print(A)
+    #print(imageGray)
+    #print(A)
     # print(getDarkChannel(imageGray, blocksize))
     t = 1 - omega * getDarkChannel(imageGray, blocksize)
     # print(t)
@@ -161,17 +188,14 @@ def transmission(img, A, blocksize, ori):
     # print(t)
     return t
 
-def main():
-    print("main")
-    # motionloop()
-    image = cv2.imread("test/frame10.jpg")
-    image = resizeimge(image, 500)
+def getDP(image):
+    image = resizeimge(image, imgsize)
     I = image.astype('float64') / 255
     darkChannel = getDarkChannel(I, 15)
     A = getAtomsLight(I, darkChannel)
     t = transmission(I, A, 15, image)
-    print('Done!')
-
+    #print('Done!')
+    
     h, w, d = image.shape
     gimg = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     for i in range(h):
@@ -180,11 +204,24 @@ def main():
                 gimg[i][j] = 255
             else:
                 gimg[i][j] = 0
-    print(t.shape)
-    print(image.shape)
-    cv2.imshow('DP', gimg)
-    cv2.waitKey(0)
+    return gimg
+#print(t.shape)
+#print(image.shape)
+#cv2.imshow('DP', gimg)
 
+def main():
+    print("main")
+    # motionloop()
+    
+    im1 = cv2.imread("test/frame175.jpg")
+    im1 = resizeimge(im1, imgsize)
+    cv2.imshow('O', im1)
+    imGrey = colorAnalysis(im1,colorth)
+    cv2.imshow('c', imGrey)
+    mhimage = mhi(175, 195, 5)
+    h,w = mhimage.shape
+    cv2.imshow('res', mhimage)
+    cv2.waitKey(0)
     # print(t)
 
 
