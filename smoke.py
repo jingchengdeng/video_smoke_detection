@@ -259,34 +259,37 @@ def drawmask(img, mask, n=3):
     cv2.addWeighted(overlay, 0.5, out, 0.5,0, out)
     return out
 
-def productVideo(h,w):
+def productVideo():
     try:
          video_src = sys.argv[1]
     except IndexError:
          print('Video Pass Error')
     cap = cv2.VideoCapture(video_src)
+    mhi = Mhi(281, 500)
     fps = 15
     capSize = (281, 500)
     frame_count = 1
     fourcc = cv2.VideoWriter_fourcc(*'avc1')
     out = cv2.VideoWriter('output.mp4', fourcc, 15.0, (1280, 720), True)
     while True:
-        print(frame_count)
         ret, frame = cap.read()
+
         if frame is None:
             print("Video reach end.")
             break
-
+        frame = resizeimge(frame, 500)
         # frame = getDP(frame)
         # frame_width = int(frame.get(3))
         # frame_height = int(frame.get(4))
-        frame = cv2.resize(frame, (1280,720))
-        print(frame.shape)
-        h,w,d = frame.shape
-        print(h)
-        print(w)
-        out.write(frame)
+        img1 = colorAnalysis(frame, colorth)
+        t, img2 = mhi.update(frame)
+        img3 = getDP(frame)
+        final = stack(img1, img2, img3)
+        ovl = drawmask(frame, final)
+
+        out.write(ovl)
         frame_count += 1
+        print(frame_count)
         if frame_count == 91:
             out.release()
             break
@@ -323,10 +326,10 @@ def ftou(img):
 def main():
     print("main")
     # motionloop()
-
-    img = cv2.imread("test2/frame255.jpg")
-    img = resizeimge(img, imgsize)
-    h,w,d = img.shape
+    #
+    # img = cv2.imread("test2/frame255.jpg")
+    # img = resizeimge(img, imgsize)
+    # h,w,d = img.shape
 #    img1 = colorAnalysis(img,colorth)
 #    #cv2.imshow('grey', img1)
 #img2, t = getDP(img)
@@ -336,14 +339,16 @@ def main():
 #    cv2.imshow('final', final)
 #    ovl = drawmask(img, final)
 #    cv2.imshow('overlay', ovl)
-
-    mhi = Mhi(h, w)
-    tsp, ret = mhi.update(img)
-    for i in range(260, 300, 5):
-        img = cv2.imread("test2/frame"+str(i)+".jpg")
-        tsp, ret = mhi.update(img)
-    print(tsp)
-    cv2.imshow('img', ret)
+#
+#     mhi = Mhi(h, w)
+#     tsp, ret = mhi.update(img)
+#     for i in range(260, 300, 5):
+#         img = cv2.imread("test2/frame"+str(i)+".jpg")
+#         tsp, ret = mhi.update(img)
+#     print(tsp)
+#     cv2.imshow('img', ret)
+    productVideo()
+    print('Done!')
     
 
 
