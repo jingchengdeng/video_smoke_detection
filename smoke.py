@@ -20,7 +20,7 @@ m1 = "test/frame10.jpg"
 m2 = "test/frame15.jpg"
 imgsize = 500
 MHI_DURATION = 5
-DEFAULT_THRESHOLD = 150
+DEFAULT_THRESHOLD = 30
 MAX_TIME_DELTA = 3
 MIN_TIME_DELTA = 2
 colorth = 85
@@ -48,6 +48,7 @@ class Mhi:
             gry = motion(mhi.lastimg, img)
             et, motion_mask = cv2.threshold(gry, DEFAULT_THRESHOLD, 1, cv2.THRESH_BINARY)
             mhi.timestamp += 1
+            mhi.lastimg = img
             cv2.motempl.updateMotionHistory(motion_mask, mhi.motion_history, mhi.timestamp, MHI_DURATION)
             vis = np.uint8(np.clip((mhi.motion_history-(mhi.timestamp-MHI_DURATION)) / MHI_DURATION, 0, 1)*255)
             return mhi.timestamp, vis
@@ -270,7 +271,7 @@ def productVideo():
     capSize = (281, 500)
     frame_count = 1
     fourcc = cv2.VideoWriter_fourcc(*'avc1')
-    out = cv2.VideoWriter('output.mp4', fourcc, 15.0, (1280, 720), True)
+    out = cv2.VideoWriter('output.mp4', fourcc, 15.0, (500, 281), True)
     while True:
         ret, frame = cap.read()
 
@@ -286,11 +287,10 @@ def productVideo():
         img3 = getDP(frame)
         final = stack(img1, img2, img3)
         ovl = drawmask(frame, final)
-
         out.write(ovl)
         frame_count += 1
         print(frame_count)
-        if frame_count == 91:
+        if frame_count == 30:
             out.release()
             break
 
@@ -327,12 +327,13 @@ def main():
     print("main")
     # motionloop()
     #
-    # img = cv2.imread("test2/frame255.jpg")
-    # img = resizeimge(img, imgsize)
+    # img = cv2.imread("test/frame190.jpg")
+    # # img = resizeimge(img, imgsize)
     # h,w,d = img.shape
 #    img1 = colorAnalysis(img,colorth)
 #    #cv2.imshow('grey', img1)
-#img2, t = getDP(img)
+#     img2 = getDP(img)
+#     svimg(img2)
 #img3 = mhi("test2", 255, 5, 5)
 #cv2.imshow('mhi', img3)
 #    final = stack(img1,img2,img3)
