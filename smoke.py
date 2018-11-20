@@ -188,9 +188,9 @@ def transmission(img, A, blocksize, ori):
     t = 1 - omega * getDarkChannel(imageGray, blocksize)
     # print(t)
     t[t<0.1]= 0.1
-    # normI = (img - img.min()) / (img.max() - img.min())
-    # t = guided_filter(normI, t, 40, 0.0001)
-    # print(t)
+    normI = (img - img.min()) / (img.max() - img.min())
+    t = guided_filter(normI, t, 40, 0.0001)
+    #print(t)
     return t
 
 def getDP(image):
@@ -269,6 +269,8 @@ def productVideo(h,w):
             out.release()
             break
 
+
+
 def extract_frames(fn):
     try:
         video_src = fn
@@ -291,6 +293,10 @@ def extract_frames(fn):
         if (cv2.waitKey(10) & 0xFF) == 'Q':
             break
         frame_count += 1
+
+def ftou(img):
+    ret = img*255
+    return ret.astype(np.uint8)
 
 def main():
     print("main")
