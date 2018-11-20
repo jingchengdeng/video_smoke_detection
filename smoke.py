@@ -231,7 +231,7 @@ def getDP(image):
                 gimg[i][j] = 255
             else:
                 gimg[i][j] = 0
-    return gimg, t
+    return gimg
 #print(t.shape)
 #print(image.shape)
 #cv2.imshow('DP', gimg)
