@@ -19,11 +19,12 @@ imgf = "data/smk3.jpg"
 m1 = "test/frame10.jpg"
 m2 = "test/frame15.jpg"
 imgsize = 500
-MHI_DURATION = 5
+MHI_DURATION = 10
 DEFAULT_THRESHOLD = 30
 MAX_TIME_DELTA = 3
 MIN_TIME_DELTA = 2
 colorth = 85
+debug = False
 
 class Node(object):
     def __init__(self, x, y, key):
@@ -43,7 +44,7 @@ class Mhi:
         if mhi.timestamp == 0:
             mhi.lastimg = img
             mhi.timestamp += 1
-            return mhi.timestamp, mhi.motion_history
+            return mhi.timestamp, np.uint8(mhi.motion_history)
         else:
             gry = motion(mhi.lastimg, img)
             et, motion_mask = cv2.threshold(gry, DEFAULT_THRESHOLD, 1, cv2.THRESH_BINARY)
@@ -198,7 +199,7 @@ def getAtomsLight(img, darkChannel):
 # return: A
 ##########################################
 
-def transmission(img, A, blocksize, ori):
+def transmission(img, A, blocksize, bol):
     omega = 0.95
     imageGray = np.empty(img.shape, img.dtype)
     # imageGray = np.min(img, axis=2)
@@ -211,17 +212,19 @@ def transmission(img, A, blocksize, ori):
     t = 1 - omega * getDarkChannel(imageGray, blocksize)
     # print(t)
     t[t<0.1]= 0.1
-    normI = (img - img.min()) / (img.max() - img.min())
-    t = guided_filter(normI, t, 40, 0.0001)
+
+    if bol == True:
+        normI = (img - img.min()) / (img.max() - img.min())
+        t = guided_filter(normI, t, 40, 0.0001)
     #print(t)
     return t
 
-def getDP(image):
+def getDP(image, bol):
     image = resizeimge(image, imgsize)
     I = image.astype('float64') / 255
     darkChannel = getDarkChannel(I, 15)
     A = getAtomsLight(I, darkChannel)
-    t = transmission(I, A, 15, image)
+    t = transmission(I, A, 15, bol)
     #print('Done!')
     
     h, w, d = image.shape
@@ -240,13 +243,15 @@ def getDP(image):
 def stack(img, img2, img3):
     out = img.copy()
     h,w = img.shape
+    count = 0
     for i in range(h):
         for j in range(w):
-            if img[i][j] > 75 and img2[i][j] > 75 and img3[i][j] > 75:
+            if img[i][j] > 75 and img2[i][j] > 1 and img3[i][j] > 75:
                 out[i][j] = 255
+                count += 1
             else:
                 out[i][j] = 0
-    return out
+    return out, count
 
 # input: original image,
 def drawmask(img, mask, n=3):
@@ -260,39 +265,96 @@ def drawmask(img, mask, n=3):
     cv2.addWeighted(overlay, 0.5, out, 0.5,0, out)
     return out
 
-def productVideo():
+def productVideo(bol, path):
     try:
-         video_src = sys.argv[1]
+        video_src = path
     except IndexError:
-         print('Video Pass Error')
+        print('Video Pass Error')
     cap = cv2.VideoCapture(video_src)
-    mhi = Mhi(281, 500)
-    fps = 15
-    capSize = (281, 500)
+    ret, frame = cap.read()
+    h, w, d= resizeimge(frame, imgsize).shape
+    mhi = Mhi(h, w)
     frame_count = 1
     fourcc = cv2.VideoWriter_fourcc(*'avc1')
-    out = cv2.VideoWriter('output.mp4', fourcc, 15.0, (500, 281), True)
+    out = cv2.VideoWriter('output.mp4', fourcc, 15.0, (w, h), True)
+    if debug == True:
+        out1 = cv2.VideoWriter('ColorAnalysis.mp4', fourcc, 15.0, (w, h), True)
+        out2 = cv2.VideoWriter('MHI.mp4', fourcc, 15.0, (w, h), True)
+        out3 = cv2.VideoWriter('DarkChannel.mp4', fourcc, 15.0, (w, h), True)
     while True:
         ret, frame = cap.read()
 
         if frame is None:
             print("Video reach end.")
             break
-        frame = resizeimge(frame, 500)
+        frame = resizeimge(frame, imgsize)
+        frame_count += 1
+        if frame_count == 2 or frame_count == 3 or frame_count == 4:
+            continue
         # frame = getDP(frame)
         # frame_width = int(frame.get(3))
         # frame_height = int(frame.get(4))
         img1 = colorAnalysis(frame, colorth)
         t, img2 = mhi.update(frame)
-        img3 = getDP(frame)
-        final = stack(img1, img2, img3)
+        img3 = getDP(frame, bol)
+        final, count = stack(img1, img2, img3)
         ovl = drawmask(frame, final)
+        if debug == True:
+            img1 = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)
+            img2 = cv2.cvtColor(img2, cv2.COLOR_GRAY2BGR)
+            # print(img2.dtype)
+            # print(img1.dtype)
+            img3 = cv2.cvtColor(img3, cv2.COLOR_GRAY2BGR)
+            out1.write(img1)
+            out2.write(img2)
+            out3.write(img3)
         out.write(ovl)
-        frame_count += 1
-        print(frame_count)
-        if frame_count == 30:
+        print(frame_count-1)
+        if frame_count == 301:
             out.release()
             break
+
+def realtime(path):
+    try:
+        video_src = path
+    except IndexError:
+        print('Video Pass Error')
+    cap = cv2.VideoCapture(video_src)
+    smoke = False
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    bottomLeftCornerOfText = (30, 30)
+    fontScale = 1
+    fontColor = (0, 0, 255)
+    lineType = 2
+    ret, frame = cap.read()
+    h, w, d= resizeimge(frame, imgsize).shape
+    mhi = Mhi(h, w)
+
+    while True:
+        ret, frame = cap.read()
+        if frame is None:
+            print("Video reach end.")
+            break
+        frame = resizeimge(frame, imgsize)
+        img1 = colorAnalysis(frame, colorth)
+        t, img2 = mhi.update(frame)
+        img3 = getDP(frame, False)
+        final, count = stack(img1, img2, img3)
+        print(count)
+        if smoke == True:
+            cv2.putText(frame, 'SMOKE SMOKE SMOKE!',
+                        bottomLeftCornerOfText,
+                        font,
+                        fontScale,
+                        fontColor,
+                        lineType)
+        if count > 500 and smoke == False:
+            smoke = True
+        elif count < 500 and smoke == True:
+            smoke = False
+        cv2.imshow('realtime', frame)
+        cv2.waitKey(10)
+
 
 
 
@@ -324,7 +386,44 @@ def ftou(img):
     return ret.astype(np.uint8)
 
 def main():
-    print("main")
+    global debug
+    print("-----------Smoke detect System-----------")
+    while True:
+        sorce = input("Please enter video path: ")
+        mode = input("Please enter detect mode(video/realtime/debug): ")
+        filter = input("Do you want to apply guided filter for better result but slow the process?(Y/N):")
+
+        print("Video Path:" + sorce + " Mode: " + mode + " Guided_Filter: " + filter)
+
+        if mode == "video":
+            if filter == "Y":
+                productVideo(True, sorce)
+            elif filter == "N":
+                productVideo(False, sorce)
+            else:
+                print("Please enter correct filter, choosen from Y, N!")
+        elif mode == "debug":
+            debug = True
+            print("Enter debug mode!")
+            if filter == "Y":
+                productVideo(True, sorce)
+            elif filter == "N":
+                productVideo(False, sorce)
+            else:
+                print("Please enter correct filter, choosen from Y, N!")
+        elif mode == "realtime":
+            # print("realtime")
+            realtime(sorce)
+        else:
+            print("Please Enter correct mode! Choosen from video, realtime, debug!")
+
+        quit = input("Do you want to exit? Y/N:")
+        if quit == "N":
+            continue
+        else:
+            break
+
+
     # motionloop()
     #
     # img = cv2.imread("test/frame190.jpg")
@@ -348,7 +447,7 @@ def main():
 #         tsp, ret = mhi.update(img)
 #     print(tsp)
 #     cv2.imshow('img', ret)
-    productVideo()
+    # productVideo()
     print('Done!')
     
 
