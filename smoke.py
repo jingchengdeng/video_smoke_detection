@@ -19,7 +19,7 @@ imgf = "data/smk3.jpg"
 m1 = "test/frame10.jpg"
 m2 = "test/frame15.jpg"
 imgsize = 500
-MHI_DURATION = 10
+MHI_DURATION = 20
 DEFAULT_THRESHOLD = 30
 MAX_TIME_DELTA = 3
 MIN_TIME_DELTA = 2
@@ -310,7 +310,7 @@ def productVideo(bol, path):
             out3.write(img3)
         out.write(ovl)
         print(frame_count-1)
-        if frame_count == 301:
+        if frame_count == 30:
             out.release()
             break
 
