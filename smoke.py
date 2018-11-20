@@ -243,13 +243,15 @@ def getDP(image, bol):
 def stack(img, img2, img3):
     out = img.copy()
     h,w = img.shape
+    count = 0
     for i in range(h):
         for j in range(w):
             if img[i][j] > 75 and img2[i][j] > 1 and img3[i][j] > 75:
                 out[i][j] = 255
+                count += 1
             else:
                 out[i][j] = 0
-    return out
+    return out, count
 
 # input: original image,
 def drawmask(img, mask, n=3):
@@ -269,23 +271,23 @@ def productVideo(bol, path):
     except IndexError:
         print('Video Pass Error')
     cap = cv2.VideoCapture(video_src)
-    mhi = Mhi(281, 500)
-    fps = 15
-    capSize = (281, 500)
+    ret, frame = cap.read()
+    h, w, d= resizeimge(frame, imgsize).shape
+    mhi = Mhi(h, w)
     frame_count = 1
     fourcc = cv2.VideoWriter_fourcc(*'avc1')
-    out = cv2.VideoWriter('output.mp4', fourcc, 15.0, (500, 281), True)
+    out = cv2.VideoWriter('output.mp4', fourcc, 15.0, (w, h), True)
     if debug == True:
-        out1 = cv2.VideoWriter('ColorAnalysis.mp4', fourcc, 15.0, (500, 281), True)
-        out2 = cv2.VideoWriter('MHI.mp4', fourcc, 15.0, (500, 281), True)
-        out3 = cv2.VideoWriter('DarkChannel.mp4', fourcc, 15.0, (500, 281), True)
+        out1 = cv2.VideoWriter('ColorAnalysis.mp4', fourcc, 15.0, (w, h), True)
+        out2 = cv2.VideoWriter('MHI.mp4', fourcc, 15.0, (w, h), True)
+        out3 = cv2.VideoWriter('DarkChannel.mp4', fourcc, 15.0, (w, h), True)
     while True:
         ret, frame = cap.read()
 
         if frame is None:
             print("Video reach end.")
             break
-        frame = resizeimge(frame, 500)
+        frame = resizeimge(frame, imgsize)
         frame_count += 1
         if frame_count == 2 or frame_count == 3 or frame_count == 4:
             continue
@@ -295,7 +297,7 @@ def productVideo(bol, path):
         img1 = colorAnalysis(frame, colorth)
         t, img2 = mhi.update(frame)
         img3 = getDP(frame, bol)
-        final = stack(img1, img2, img3)
+        final, count = stack(img1, img2, img3)
         ovl = drawmask(frame, final)
         if debug == True:
             img1 = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)
@@ -308,7 +310,7 @@ def productVideo(bol, path):
             out3.write(img3)
         out.write(ovl)
         print(frame_count-1)
-        if frame_count == 30:
+        if frame_count == 301:
             out.release()
             break
 
@@ -317,6 +319,43 @@ def realtime(path):
         video_src = path
     except IndexError:
         print('Video Pass Error')
+    cap = cv2.VideoCapture(video_src)
+    smoke = False
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    bottomLeftCornerOfText = (30, 30)
+    fontScale = 1
+    fontColor = (0, 0, 255)
+    lineType = 2
+    ret, frame = cap.read()
+    h, w, d= resizeimge(frame, imgsize).shape
+    mhi = Mhi(h, w)
+
+    while True:
+        ret, frame = cap.read()
+        if frame is None:
+            print("Video reach end.")
+            break
+        frame = resizeimge(frame, imgsize)
+        img1 = colorAnalysis(frame, colorth)
+        t, img2 = mhi.update(frame)
+        img3 = getDP(frame, False)
+        final, count = stack(img1, img2, img3)
+        print(count)
+        if smoke == True:
+            cv2.putText(frame, 'SMOKE SMOKE SMOKE!',
+                        bottomLeftCornerOfText,
+                        font,
+                        fontScale,
+                        fontColor,
+                        lineType)
+        if count > 500 and smoke == False:
+            smoke = True
+        elif count < 500 and smoke == True:
+            smoke = False
+        cv2.imshow('realtime', frame)
+        cv2.waitKey(10)
+
+
 
 
 def extract_frames(fn):
@@ -373,7 +412,8 @@ def main():
             else:
                 print("Please enter correct filter, choosen from Y, N!")
         elif mode == "realtime":
-            print("realtime")
+            # print("realtime")
+            realtime(sorce)
         else:
             print("Please Enter correct mode! Choosen from video, realtime, debug!")
 
