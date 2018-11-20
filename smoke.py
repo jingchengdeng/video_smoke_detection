@@ -31,6 +31,28 @@ class Node(object):
         self.y = y
         self.key = key
 
+class Mhi:
+    def __init__(self, h, w):
+        self.h = h
+        self.w = w
+        self.timestamp = 0
+        self.motion_history = np.zeros((h, w), np.float32)
+        self.lastimg = np.zeros((h, w), np.float32)
+    def update(mhi, img):
+        img = cv2.resize(img,(mhi.w,mhi.h))
+        if mhi.timestamp == 0:
+            mhi.lastimg = img
+            mhi.timestamp += 1
+            return mhi.timestamp, mhi.motion_history
+        else:
+            gry = motion(mhi.lastimg, img)
+            et, motion_mask = cv2.threshold(gry, DEFAULT_THRESHOLD, 1, cv2.THRESH_BINARY)
+            mhi.timestamp += 1
+            cv2.motempl.updateMotionHistory(motion_mask, mhi.motion_history, mhi.timestamp, MHI_DURATION)
+            vis = np.uint8(np.clip((mhi.motion_history-(mhi.timestamp-MHI_DURATION)) / MHI_DURATION, 0, 1)*255)
+            return mhi.timestamp, vis
+
+
 def svimg(img):
     cv2.imwrite('out.jpg',img)
 
@@ -303,17 +325,26 @@ def main():
     # motionloop()
 
     img = cv2.imread("test2/frame255.jpg")
-#    img = resizeimge(img, imgsize)
-#    h,w,d = img.shape
+    img = resizeimge(img, imgsize)
+    h,w,d = img.shape
 #    img1 = colorAnalysis(img,colorth)
 #    #cv2.imshow('grey', img1)
-    img2, t = getDP(img)
+#img2, t = getDP(img)
 #img3 = mhi("test2", 255, 5, 5)
 #cv2.imshow('mhi', img3)
 #    final = stack(img1,img2,img3)
 #    cv2.imshow('final', final)
 #    ovl = drawmask(img, final)
 #    cv2.imshow('overlay', ovl)
+
+    mhi = Mhi(h, w)
+    tsp, ret = mhi.update(img)
+    for i in range(260, 300, 5):
+        img = cv2.imread("test2/frame"+str(i)+".jpg")
+        tsp, ret = mhi.update(img)
+    print(tsp)
+    cv2.imshow('img', ret)
+    
 
 
 #extract_frames("videos/simple_smoke.mp4")
