@@ -1,0 +1,39 @@
+.worktrees/
+worktrees/
+docs/
+
+# Local agent/editor/session state
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.codex/
+.cursor/
+.idea/
+.vscode/
+.DS_Store
+
+# Python cache and test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local environments
+.venv/
+venv/
+env/
+
+# Generated media and derived artifacts
+outputs/
+out.jpg
+output.mp4
+output*.mp4
+ColorAnalysis.mp4
+MHI.mp4
+DarkChannel.mp4
+out_without filter.mp4
+frame*.jpg
+test/frame*.jpg
+test2/frame*.jpg
+*.log
